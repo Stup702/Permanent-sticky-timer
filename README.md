@@ -17,7 +17,8 @@ To make it a executable application on ubuntu, just run the following commands
 ### 2.Then put Your Script Somewhere Sensible
 
     mkdir -p ~/Scripts
-    mv sticky_timer.py ~/Scripts/
+
+#### Download and put the sticky_timer.py file inside
 
 ### 3.Make Sure its executable
 
