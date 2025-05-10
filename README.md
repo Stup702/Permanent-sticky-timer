@@ -1,10 +1,13 @@
+# Permanent Sticky Timer
+
 A sticky timer appilcation for linux that sticks on top of your workspace. For pretending like you are getting work done and to not have the need to open your timer app again. It will ask for a new timer when one ends. If you do not enter anything in 15 second, tries to guilt trip you.
 
-
+## Ringtone setup
 You need two .wav files for the tone reminders to work. Keep them in /home/USER/Music/
 Name them timer_done.wav and timer_set.wav 
 Just download any ringtone you like and convert to .wav or use mine. 
 
+## Installation
 To make it a executable application on ubuntu, just run the following commands
 
 1.First install tkinter:
