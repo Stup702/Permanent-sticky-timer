@@ -4,8 +4,8 @@ A sticky timer appilcation for linux that sticks on top of your workspace. For p
 
 ## Ringtone setup
 You need two .wav files for the tone reminders to work. Keep them in /home/USER/Music/
-Name them timer_done.wav and timer_set.wav 
-Just download any ringtone you like and convert to .wav or use mine. 
+Name them timer_done.wav and timer_set.wav.
+Just use mine or download any ringtone you like and convert to .wav. 
 
 ## Installation
 To make it a executable application on ubuntu, just run the following commands
