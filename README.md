@@ -43,12 +43,12 @@ Terminal=false
 StartupNotify=false
 
 
-#### 6.Then save and exit (Ctrl+O, then Enter, then Ctrl+X).
+#### Then save and exit (Ctrl+O, then Enter, then Ctrl+X).
 
-### 7.  Make It Executable
+### 6.  Make It Executable
     chmod +x ~/Desktop/StickyTimer.desktop
 
-### 8. Make it actually clickable
+### 7. Make it actually clickable
    Right-click the StickyTimer.desktop file on your Desktop, choose Properties > Permissions, and make sure “Allow executing file as program” is checked.
 
 
