@@ -22,11 +22,32 @@ def countdown(duration):
     update(duration)
 
 def ask_again():
-    minutes = simpledialog.askinteger("Timer Setup", "How many minutes?")
-    if minutes and minutes > 0:
-        countdown(minutes * 60)
-    else:
-        root.destroy()  # Escape the loop, and this life
+    input_win = tk.Toplevel(root)
+    input_win.title("Timer Setup")
+    input_win.attributes("-topmost", True)
+    input_win.geometry("250x100+950+200")
+    input_win.resizable(False, False)
+
+    tk.Label(input_win, text="How many minutes?", font=('Helvetica', 12)).pack(pady=5)
+    entry = tk.Entry(input_win, font=('Helvetica', 14))
+    entry.pack(pady=5)
+    entry.focus()
+
+    def submit():
+        try:
+            minutes = int(entry.get())
+            if minutes > 0:
+                input_win.destroy()
+                countdown(minutes * 60)
+            else:
+                input_win.destroy()
+                root.destroy()
+        except ValueError:
+            entry.delete(0, tk.END)
+            entry.insert(0, "🙄")
+
+    tk.Button(input_win, text="Start", command=submit).pack()
+    input_win.bind('<Return>', lambda event: submit())
 
 # Set up the window
 root = tk.Tk()
