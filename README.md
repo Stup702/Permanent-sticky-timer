@@ -14,11 +14,14 @@ To make it a executable application on ubuntu, just run the following commands
 
     sudo apt install python3-tk
  
-### 2.Then put Your Script Somewhere Sensible
+### 2.Create folder and download
+
+#### Create a Scripts folder in /home and dwnload and put the sticky_timer.py file inside
 
     mkdir -p ~/Scripts
+### Download the .py from here
+    https://github.com/Stup702/Permanent-sticky-timer/blob/488835f6084db1507a4aee6e35a18912ca676907/sticky_timer.py
 
-#### Download and put the sticky_timer.py file inside
 
 ### 3.Make Sure its executable
 
