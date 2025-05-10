@@ -29,7 +29,7 @@ To make it a executable application on ubuntu, just run the following commands
     nano ~/Desktop/StickyTimer.desktop
 
 ### 5.Put this inside the .desktop file
-####⚠️ Replace YOUR_USERNAME with your actual username
+#### ⚠️ Replace YOUR_USERNAME with your actual username
 
 
     [Desktop Entry]
