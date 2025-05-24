@@ -22,7 +22,6 @@ To make it a executable application on ubuntu, just run the following commands
 ### Download the .py from here
     https://github.com/Stup702/Permanent-sticky-timer/blob/488835f6084db1507a4aee6e35a18912ca676907/sticky_timer.py
 
-
 ### 3.Make Sure its executable
 
     chmod +x ~/Scripts/sticky_timer.py
