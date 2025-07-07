@@ -10,9 +10,11 @@ Just use mine or download any ringtone you like and convert to .wav.
 ## Installation
 To make it a executable application on ubuntu, just run the following commands
 
-### 1.First install tkinter:
+### 1.First install Dependencies:
 
     sudo apt install python3-tk
+    sudo apt install python3-pip
+    pip install matplotlib
  
 ### 2.Create folder and download
 
