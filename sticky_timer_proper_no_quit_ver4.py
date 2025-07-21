@@ -16,91 +16,72 @@ LOG_FILE = "logs.json"
 daily_log = {subject: 0 for subject in SUBJECTS}
 study_log = {subject: 0 for subject in SUBJECTS}  # Weekly log
 monthly_log = {subject: 0 for subject in SUBJECTS}
-last_weekly_reset = datetime.now().date() 
+last_weekly_reset = ''  # Tracks the last weekly reset date
 last_monthly_reset = ''  # Tracks the last monthly reset month
 monthly_popup_shown = False
 concentration_mode_active = False  # Flag for Concentration Mode
 
-def get_last_friday(date):
-    weekday = date.weekday()  # Monday=0, Sunday=6
-    days_since_friday = (weekday - 4) % 7  # 4 is Friday
-    last_friday = date - timedelta(days=days_since_friday)
-    return last_friday
-
-
 def load_logs():
+    """Load and update logs from the JSON file with reset logic."""
     global daily_log, study_log, monthly_log, last_weekly_reset, last_monthly_reset
     try:
         with open(LOG_FILE, 'r') as f:
             data = json.load(f)
-            print(f"Loaded data: {data}")  # Debug
     except (FileNotFoundError, json.JSONDecodeError):
         data = {}
-        print("No log file or corrupt JSON, initializing new logs")
 
-    today = datetime.now().date()
-    current_month = today.strftime('%Y-%m')
+    today = datetime.now().strftime('%Y-%m-%d')
+    current_month = datetime.now().strftime('%Y-%m')
 
     # Daily reset
-    last_date_str = data.get('last_date', '')
-    if last_date_str:
-        try:
-            last_date = datetime.strptime(last_date_str, '%Y-%m-%d').date()
-            if last_date == today:
-                daily_log.update(data.get('daily', {}))
-            else:
-                daily_log = {subject: 0 for subject in SUBJECTS}
-        except ValueError:
-            daily_log = {subject: 0 for subject in SUBJECTS}
+    last_date = data.get('last_date', '')
+    if last_date == today:
+        daily_log.update(data.get('daily', {}))
     else:
         daily_log = {subject: 0 for subject in SUBJECTS}
-    print(f"daily_log: {daily_log}")  # Debug
 
-    # Weekly reset (every Friday)
-    last_friday = get_last_friday(today)
-    last_weekly_reset_str = data.get('last_weekly_reset', '')
-    if last_weekly_reset_str:
+    # Weekly reset (every 7 days)
+    last_weekly_reset_local = data.get('last_weekly_reset', '')
+    if last_weekly_reset_local:
         try:
-            last_weekly_reset = datetime.strptime(last_weekly_reset_str, '%Y-%m-%d').date()
-            if last_weekly_reset < last_friday:
+            last_reset_date = datetime.strptime(last_weekly_reset_local, '%Y-%m-%d')
+            days_since_reset = (datetime.now() - last_reset_date).days
+            if days_since_reset >= 7:
                 study_log = {subject: 0 for subject in SUBJECTS}
-                last_weekly_reset = last_friday
-                print(f"Reset study_log, last_weekly_reset: {last_weekly_reset}")  # Debug
+                last_weekly_reset = today
+                
             else:
                 study_log.update(data.get('weekly', {}))
-                print(f"Loaded study_log: {study_log}")  # Debug
+                last_weekly_reset = last_weekly_reset_local
         except ValueError:
             study_log = {subject: 0 for subject in SUBJECTS}
-            last_weekly_reset = last_friday
-            print(f"Invalid last_weekly_reset, reset study_log, last_weekly_reset: {last_weekly_reset}")  # Debug
+            last_weekly_reset = today
     else:
         study_log = {subject: 0 for subject in SUBJECTS}
-        last_weekly_reset = last_friday
-        print(f"No last_weekly_reset, set to {last_weekly_reset}")  # Debug
+        last_weekly_reset = today
 
     # Monthly reset (start of each month)
     last_monthly_reset_local = data.get('last_monthly_reset', '')
     if last_monthly_reset_local != current_month:
         monthly_log = {subject: 0 for subject in SUBJECTS}
         last_monthly_reset = current_month
-        print(f"Reset monthly_log, last_monthly_reset: {last_monthly_reset}")  # Debug
     else:
         monthly_log.update(data.get('monthly', {}))
-        print(f"Loaded monthly_log: {monthly_log}")  # Debug
-        
+        last_monthly_reset = last_monthly_reset_local
 
 def save_logs():
     """Save all logs and reset dates to the JSON file."""
-    today = datetime.now().date()
+    today = datetime.now().strftime('%Y-%m-%d')
     with open(LOG_FILE, 'w') as f:
         json.dump({
             'daily': daily_log,
             'weekly': study_log,
             'monthly': monthly_log,
-            'last_date': today.strftime('%Y-%m-%d'),
-            'last_weekly_reset': last_weekly_reset.strftime('%Y-%m-%d'),
+            'last_date': today,
+            'last_weekly_reset': last_weekly_reset,
             'last_monthly_reset': last_monthly_reset
         }, f)
+
 # Load logs at startup
 load_logs()
 
@@ -114,10 +95,10 @@ screen_width = root.winfo_screenwidth()
 screen_height = root.winfo_screenheight()
 
 # Set main window size as 10% of screen width and 8% of screen height, centered
-main_width = int(screen_width * 0.12)
+main_width = int(screen_width * 0.10)
 main_height = int(screen_height * 0.08)
 root.geometry(f"{main_width}x{main_height}+{int(screen_width * 0.5 - main_width * 0.5)}+{int(screen_height * 0.1)}")
-root.resizable(True, True)
+root.resizable(False, False)
 
 label = tk.Label(root, font=('Helvetica', 30), fg='white', bg='black')
 label.pack(expand=True, fill='both')
@@ -206,12 +187,19 @@ def update_graph():
 
 def update_logs_periodically():
     """Update logs every minute while a timer or stopwatch is running."""
-    global log_update_after_id
+    global current_subject, timer_started, stopwatch_running, log_update_after_id
     if timer_started or stopwatch_running:
+        if current_subject:
+            daily_log[current_subject] += 1
+            study_log[current_subject] += 1
+            monthly_log[current_subject] += 1
+            save_logs()
         log_update_after_id = root.after(60000, update_logs_periodically)
     else:
         log_update_after_id = None
+
 def countdown(duration):
+    """Run the countdown timer and update logs when finished."""
     def update(count):
         global reminder_after_id, start_time
         mins, secs = divmod(count, 60)
@@ -235,11 +223,10 @@ def countdown(duration):
             if current_subject and start_time:
                 duration_minutes = (end_time - start_time).total_seconds() / 60
                 minutes = round(duration_minutes)
-                daily_log[current_subject] = daily_log.get(current_subject, 0) + minutes
-                study_log[current_subject] = study_log.get(current_subject, 0) + minutes
-                monthly_log[current_subject] = monthly_log.get(current_subject, 0) + minutes
+                daily_log[current_subject] += minutes
+                study_log[current_subject] += minutes
+                monthly_log[current_subject] += minutes
                 save_logs()
-                print(f"Saved study_log: {study_log}")  # Debug
             reminder_after_id = root.after(5000, reminder)
     global log_update_after_id
     if log_update_after_id:
@@ -279,19 +266,19 @@ def stopwatch():
     log_update_after_id = root.after(60000, update_logs_periodically)
 
 def stop_stopwatch():
+    """Stop the stopwatch and save the elapsed time."""
     global timer_started, stopwatch_running, current_subject, start_time, reminder_after_id, stopwatch_stop_button, log_update_after_id, concentration_mode_active
     if stopwatch_running:
         stopwatch_running = False
-        concentration_mode_active = False
+        concentration_mode_active = False  # Deactivate Concentration Mode
         end_time = datetime.now()
         if current_subject and start_time:
             duration_minutes = (end_time - start_time).total_seconds() / 60
             minutes = round(duration_minutes)
-            daily_log[current_subject] = daily_log.get(current_subject, 0) + minutes
-            study_log[current_subject] = study_log.get(current_subject, 0) + minutes
-            monthly_log[current_subject] = monthly_log.get(current_subject, 0) + minutes
+            daily_log[current_subject] += minutes
+            study_log[current_subject] += minutes
+            monthly_log[current_subject] += minutes
             save_logs()
-            print(f"Saved study_log: {study_log}")  # Debug
         sound_path = os.path.join(os.path.dirname(__file__), "assets/timer_done.wav")
         if not os.path.exists(sound_path):
             print(f"Sound file not found: {sound_path}")
