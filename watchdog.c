@@ -26,6 +26,6 @@ int main(void) {
             // printf("Sticky Timer is running.\n");  // optional debug
         }
 
-        sleep(10);  // check every 1 minute
+        sleep(60);  // check every 1 minute
     }
 }
