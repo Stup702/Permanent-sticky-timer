@@ -353,7 +353,7 @@ def ask_duration(subject):
 
     if subject == "Meditation":
         try:
-            subprocess.Popen(["gnome-terminal", "--", "/home/stup/PERMANENT_STICKY_TIMER/quote_shower"])
+            subprocess.Popen(["gnome-terminal", "--", "/home/stup/Permanent_sticky_timer/quote_shower"])
             print("Motivational quote shower executed in a new terminal")
         except Exception as e:
             print(f"Failed to run quote_shower: {e}")

@@ -3,7 +3,7 @@
 #include <unistd.h>
 
 int main(void) {                                                                                                                                                                                                                                                                                                                                                                
-    const char *script = "/home/stup/PERMANENT_STICKY_TIMER/sticky_timer.py";
+    const char *script = "/home/stup/Permanent_sticky_timer/sticky_timer.py";
 
     printf("%s\n",script);
     while (1) {
