@@ -38,7 +38,7 @@ Then paste this inside
     
     [Service]
     Type=simple
-    ExecStart=python3 /home/stup/Permanent_sticky_timer/sticky_timer.py
+    ExecStart=python3 /home/USERNAME_HERE/Permanent_sticky_timer/sticky_timer.py
     Restart=always
     RestartSec=2
     Environment=DISPLAY=:0
