@@ -33,16 +33,21 @@ To make it a executable application on ubuntu, just run the following commands
 Then paste this inside
     
     [Unit]
-    Description=Sticky Timer Watchdog
+    Description=Sticky Timer
     After=graphical.target
-
+    
     [Service]
-    ExecStart=/home/USERNAME_HERE/Permanent_sticky_timer/watchdog
-    # Ensure it runs as your user
-    WorkingDirectory=/home/USERNAME_HERE/Permanent_sticky_timer
-
+    Type=simple
+    ExecStart=python3 /home/stup/Permanent_sticky_timer/sticky_timer.py
+    Restart=always
+    RestartSec=2
+    Environment=DISPLAY=:0
+    Environment=WAYLAND_DISPLAY=%t
+    Environment=XDG_RUNTIME_DIR=%t
+    
     [Install]
     WantedBy=default.target
+
     
 #### Then save and exit (Ctrl+O, then Enter, then Ctrl+X)
 
