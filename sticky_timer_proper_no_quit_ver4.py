@@ -21,6 +21,8 @@ last_monthly_reset = ''  # Tracks the last monthly reset month
 monthly_popup_shown = False
 concentration_mode_active = False  # Flag for Concentration Mode
 
+#damnit
+
 def load_logs():
     """Load and update logs from the JSON file with reset logic."""
     global daily_log, study_log, monthly_log, last_weekly_reset, last_monthly_reset
