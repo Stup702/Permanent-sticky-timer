@@ -15,7 +15,7 @@ setproctitle("Sticky Timer")
 
 
 
-SUBJECTS = ["Algorithm", "Programming","Break", "Meditation"]
+SUBJECTS = ["Algorithm","Personal Coding" "CP","COA","DSA","OOP","Matrix and Lin. Alg.","Economics","Accounting","Break", "Meditation"]
 LOG_FILE = "logs.json"
 
 daily_log = {subject: 0 for subject in SUBJECTS}
@@ -104,7 +104,7 @@ load_logs()
 
 root = tk.Tk()
 root.title("Sticky Timer")
-root.attributes("-topmost", True)
+root.attributes("-topmost", False)
 
 screen_width = root.winfo_screenwidth()
 screen_height = root.winfo_screenheight()
@@ -145,7 +145,7 @@ def show_monthly_popup():
     popup = tk.Toplevel(root)
     popup.title("Monthly Stats")
     popup_width = int(screen_width * 0.25)
-    popup_height = int(screen_height * 0.25)
+    popup_height = int(screen_height * 0.35)
     popup.geometry(f"{popup_width}x{popup_height}+{int(screen_width * 0.375 - popup_width * 0.5)}+{int(screen_height * 0.375)}")
     popup.resizable(False, False)
     popup.attributes("-topmost", True)
@@ -215,6 +215,8 @@ def countdown(duration):
         else:
             label.config(text="Time’s up")
             timer_started = False
+            load_logs()
+
             sound_path = os.path.join(os.path.dirname(__file__), "assets/timer_done.wav")
             if not os.path.exists(sound_path):
                 print(f"Sound file not found: {sound_path}")
@@ -249,8 +251,12 @@ def stopwatch():
     global start_time, timer_started, stopwatch_running, stopwatch_stop_button, log_update_after_id, concentration_mode_active
     def update():
         if stopwatch_running:
+            
             elapsed = datetime.now() - start_time
             total_seconds = int(elapsed.total_seconds())
+            if (total_seconds>=1800):#30 minutes have passed. so quit. 
+                #Prevents extra counting due to forgetting to close
+                stop_stopwatch()
             mins, secs = divmod(total_seconds, 60)
             timer_display = f"{mins:02d}:{secs:02d}"
             label.config(text=timer_display)
@@ -279,6 +285,7 @@ def stop_stopwatch():
     global timer_started, stopwatch_running, current_subject, start_time, reminder_after_id, stopwatch_stop_button, log_update_after_id, concentration_mode_active
     if stopwatch_running:
         stopwatch_running = False
+        load_logs()
         concentration_mode_active = False
         end_time = datetime.now()
         if current_subject and start_time:
@@ -337,7 +344,7 @@ def show_subject_selection():
     input_win.title("Choose Subject")
     input_win.attributes("-topmost", True)
     input_width = int(screen_width * 0.25)
-    input_height = int(screen_height * 0.30)
+    input_height = int(screen_height * 0.40)
     input_win.geometry(f"{input_width}x{input_height}+{int(screen_width * 0.375 - input_width * 0.5)}+{int(screen_height * 0.375)}")
     input_win.resizable(True, True)
 
@@ -362,7 +369,7 @@ def ask_duration(subject):
     input_win.title("Timer Setup")
     input_win.attributes("-topmost", True)
     setup_width = int(screen_width * 0.25)
-    setup_height = int(screen_height * 0.15)
+    setup_height = int(screen_height * 0.23)
     input_win.geometry(f"{setup_width}x{setup_height}+{int(screen_width * 0.375 - setup_width * 0.5)}+{int(screen_height * 0.45)}")
     input_win.resizable(True, True)
 
@@ -391,7 +398,22 @@ def ask_duration(subject):
             entry.delete(0, tk.END)
             entry.insert(0, "\U0001F644")
 
+    def set_timer(min):
+        global timer_started, reminder_after_id, reminder_popup, start_time
+        
+        timer_started = True
+        start_time = datetime.now()
+        input_win.destroy()
+        if reminder_after_id:
+            root.after_cancel(reminder_after_id)
+            reminder_after_id = None
+        if reminder_popup and reminder_popup.winfo_exists():
+            reminder_popup.destroy()
+        countdown(min * 60)
+
     tk.Button(input_win, text="Start", command=submit).pack(pady=5)
+    tk.Button(input_win, text="25 min", command=lambda: set_timer(25)).pack(pady=5)
+    tk.Button(input_win, text="5 min", command=lambda: set_timer(5)).pack(pady=5)
     tk.Button(input_win, text="Concentration Mode", command=lambda: start_stopwatch(current_subject)).pack(pady=5)
     input_win.bind('<Return>', lambda event: submit())
 
