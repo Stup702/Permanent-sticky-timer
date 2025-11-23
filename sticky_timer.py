@@ -15,7 +15,7 @@ setproctitle("Sticky Timer")
 
 
 
-SUBJECTS = ["Algorithm","Personal Coding" "CP","COA","DSA","OOP","Matrix and Lin. Alg.","Economics","Accounting","Break", "Meditation"]
+SUBJECTS = ["Algorithm","Personal Coding", "CP","COA","DSA","OOP","Matrix and Lin. Alg.","Economics","Accounting","Class","Break", "Meditation"]
 LOG_FILE = "logs.json"
 
 daily_log = {subject: 0 for subject in SUBJECTS}
@@ -25,6 +25,30 @@ last_weekly_reset = datetime.now().date()
 last_monthly_reset = datetime.now().strftime('%Y-%m')
 monthly_popup_shown = False
 concentration_mode_active = False
+last_logged_session = None
+
+
+
+def add_session_minutes(subject, start_time, minutes):
+    """Add minutes for a session if it hasn’t been logged yet."""
+    global last_logged_session
+
+    # Create a unique ID for this session
+    session_id = (subject, start_time.strftime('%Y-%m-%d %H:%M:%S'))
+
+    # Skip if same session was already logged
+    if last_logged_session == session_id:
+        print(f"Skipping duplicate log for session: {session_id}")
+        return
+
+    daily_log[subject] = daily_log.get(subject, 0) + minutes
+    study_log[subject] = study_log.get(subject, 0) + minutes
+    monthly_log[subject] = monthly_log.get(subject, 0) + minutes
+
+    last_logged_session = session_id
+    save_logs()
+
+
 
 def get_last_friday(date):
     weekday = date.weekday()
@@ -145,7 +169,7 @@ def show_monthly_popup():
     popup = tk.Toplevel(root)
     popup.title("Monthly Stats")
     popup_width = int(screen_width * 0.25)
-    popup_height = int(screen_height * 0.35)
+    popup_height = int(screen_height * 0.37)
     popup.geometry(f"{popup_width}x{popup_height}+{int(screen_width * 0.375 - popup_width * 0.5)}+{int(screen_height * 0.375)}")
     popup.resizable(False, False)
     popup.attributes("-topmost", True)
@@ -156,8 +180,17 @@ def show_monthly_popup():
         mins = monthly_log.get(subject, 0)
         total_mins += mins
         tk.Label(popup, text=f"{subject}: {mins //60}:{mins%60:02d}", font=('Helvetica', 14)).pack(anchor='w', padx=20)
+    
+    
     break_time = monthly_log.get("Break", 0)
+
     total_mins -= break_time
+
+    class_time = monthly_log.get("Break", 0)
+
+    total_mins-=class_time
+
+    
     tk.Label(popup, text=f"Total: {total_mins //60}:{total_mins%60:02d}", font=('Helvetica', 14)).pack(anchor='w', padx=20)
     tk.Button(popup, text="OK", command=popup.destroy).pack(pady=10)
 
@@ -181,7 +214,7 @@ def update_graph():
     table = ax.table(cellText=table_data, colLabels=["Subject", "Weekly", "Today"], loc='center', cellLoc='center')
     table.auto_set_font_size(False)
     table.set_fontsize(10)
-    table.scale(1.2, 1.2)
+    table.scale(1, 1)
     fig.tight_layout()
     canvas.draw()
     graph_root.after(10000, update_graph)
@@ -229,10 +262,7 @@ def countdown(duration):
             if current_subject and start_time:
                 duration_minutes = (end_time - start_time).total_seconds() / 60
                 minutes = round(duration_minutes)
-                daily_log[current_subject] = daily_log.get(current_subject, 0) + minutes
-                study_log[current_subject] = study_log.get(current_subject, 0) + minutes
-                monthly_log[current_subject] = monthly_log.get(current_subject, 0) + minutes
-                save_logs()
+                add_session_minutes(current_subject, start_time, minutes)
             reminder_after_id = root.after(5000, reminder)
             try:
                 with open('/tmp/sticky_timer.txt', 'w') as f:
@@ -255,6 +285,7 @@ def stopwatch():
             elapsed = datetime.now() - start_time
             total_seconds = int(elapsed.total_seconds())
             if (total_seconds>=1800):#30 minutes have passed. so quit. 
+                total_seconds=1800
                 #Prevents extra counting due to forgetting to close
                 stop_stopwatch()
             mins, secs = divmod(total_seconds, 60)
@@ -291,10 +322,8 @@ def stop_stopwatch():
         if current_subject and start_time:
             duration_minutes = (end_time - start_time).total_seconds() / 60
             minutes = round(duration_minutes)
-            daily_log[current_subject] = daily_log.get(current_subject, 0) + minutes
-            study_log[current_subject] = study_log.get(current_subject, 0) + minutes
-            monthly_log[current_subject] = monthly_log.get(current_subject, 0) + minutes
-            save_logs()
+            add_session_minutes(current_subject, start_time, minutes)
+
         label.config(text="Stopped")
         timer_started = False
         if stopwatch_stop_button:
@@ -344,7 +373,7 @@ def show_subject_selection():
     input_win.title("Choose Subject")
     input_win.attributes("-topmost", True)
     input_width = int(screen_width * 0.25)
-    input_height = int(screen_height * 0.40)
+    input_height = int(screen_height * 0.46)
     input_win.geometry(f"{input_width}x{input_height}+{int(screen_width * 0.375 - input_width * 0.5)}+{int(screen_height * 0.375)}")
     input_win.resizable(True, True)
 
