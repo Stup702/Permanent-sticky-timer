@@ -15,8 +15,17 @@ setproctitle("Sticky Timer")
 
 
 
-SUBJECTS = ["Algorithm","Personal Coding", "CP","COA","DSA","OOP","Matrix and Lin. Alg.","Economics","Accounting","Class","Break", "Meditation"]
+SUBJECTS = ["CS50","Personal Coding", "CP","COA","DSA","OOP","Matrix and Lin. Alg.","Economics","Accounting","Class","Entertainment","Break", "Meditation"]
+
+
+#to substract when summing the total times
+NON_STUDY_SUBS = ["Class","Entertainment","Break", "Meditation"]
+
 LOG_FILE = "logs.json"
+
+sub_cnt=0
+for subject in SUBJECTS:
+    sub_cnt+=1
 
 daily_log = {subject: 0 for subject in SUBJECTS}
 study_log = {subject: 0 for subject in SUBJECTS}
@@ -143,8 +152,8 @@ label.pack(expand=True, fill='both')
 graph_root = tk.Toplevel(root)
 graph_root.title("Study Stats")
 graph_width = int(screen_width * 0.30)
-graph_height = int(screen_height * 0.25)
-graph_root.geometry(f"{graph_width}x{graph_height}+{int(screen_width * 0.35 - graph_width * 0.5)}+{int(screen_height * 0.1)}")
+graph_height = int(screen_height * (0.03*sub_cnt))
+graph_root.geometry(f"{graph_width}x{graph_height}+{0}+{0}")
 graph_root.resizable(False, False)
 
 fig, ax = plt.subplots(figsize=(4, 3))
@@ -168,9 +177,9 @@ def show_monthly_popup():
     monthly_popup_shown = True
     popup = tk.Toplevel(root)
     popup.title("Monthly Stats")
-    popup_width = int(screen_width * 0.25)
+    popup_width = int(screen_width * 0.3)
     popup_height = int(screen_height * 0.37)
-    popup.geometry(f"{popup_width}x{popup_height}+{int(screen_width * 0.375 - popup_width * 0.5)}+{int(screen_height * 0.375)}")
+    popup.geometry(f"{popup_width}x{popup_height}+{int(screen_width  - popup_width )}+{int(0)}")
     popup.resizable(False, False)
     popup.attributes("-topmost", True)
 
@@ -179,27 +188,42 @@ def show_monthly_popup():
     for subject in SUBJECTS:
         mins = monthly_log.get(subject, 0)
         total_mins += mins
-        tk.Label(popup, text=f"{subject}: {mins //60}:{mins%60:02d}", font=('Helvetica', 14)).pack(anchor='w', padx=20)
+        tk.Label(popup, text=f"{subject}:     {mins //60}:{mins%60:02d}", font=('Helvetica', 14)).pack(anchor='e', padx=20)
     
+    non_study_time_monthly = 0
     
-    break_time = monthly_log.get("Break", 0)
-
-    total_mins -= break_time
-
-    class_time = monthly_log.get("Break", 0)
-
-    total_mins-=class_time
+    for subject in NON_STUDY_SUBS:
+        mins = monthly_log.get(subject, 0)
+        non_study_time_monthly += mins
+    
+    total_mins-=non_study_time_monthly
 
     
-    tk.Label(popup, text=f"Total: {total_mins //60}:{total_mins%60:02d}", font=('Helvetica', 14)).pack(anchor='w', padx=20)
+    tk.Label(popup, text=f"Total:     {total_mins //60}:{total_mins%60:02d}", font=('Helvetica', 14)).pack(anchor='e', padx=20)
     tk.Button(popup, text="OK", command=popup.destroy).pack(pady=10)
 
 def update_graph():
     ax.clear()
     ax.set_title("Weekly Study Time Table")
     ax.axis('off')
-    total_weekly = sum(study_log.get(subject, 0) for subject in SUBJECTS) - study_log.get("Break", 0)
-    total_daily = sum(daily_log.get(subject, 0) for subject in SUBJECTS) - daily_log.get("Break", 0)
+    total_weekly = sum(study_log.get(subject, 0) for subject in SUBJECTS)
+
+    non_study_time_weekly=0
+
+    for subject in NON_STUDY_SUBS:
+        non_study_time_weekly+=study_log.get(subject,0)
+
+    total_weekly-=non_study_time_weekly
+
+    total_daily = sum(daily_log.get(subject, 0) for subject in SUBJECTS)
+
+    non_study_time_daily=0
+
+    for subject in NON_STUDY_SUBS:
+        non_study_time_daily+=daily_log.get(subject,0)
+
+    total_daily -=non_study_time_daily
+
     table_data = [
         [subject,
          f"{study_log.get(subject, 0) // 60}:{study_log.get(subject, 0) % 60:02d}",
@@ -211,11 +235,15 @@ def update_graph():
         f"{total_weekly // 60}:{total_weekly % 60:02d}",
         f"{total_daily // 60}:{total_daily % 60:02d}"
     ])
-    table = ax.table(cellText=table_data, colLabels=["Subject", "Weekly", "Today"], loc='center', cellLoc='center')
+    table = ax.table(
+        cellText=table_data, 
+        colLabels=["Subject", "Weekly", "Today"], 
+        loc='center', 
+        cellLoc='center',
+        bbox=[0, 0, 1, 1] 
+    )
     table.auto_set_font_size(False)
     table.set_fontsize(10)
-    table.scale(1, 1)
-    fig.tight_layout()
     canvas.draw()
     graph_root.after(10000, update_graph)
 
@@ -355,7 +383,7 @@ def reminder():
         reminder_popup.attributes("-topmost", True)
         reminder_width = int(screen_width * 0.15)
         reminder_height = int(screen_height * 0.05)
-        reminder_popup.geometry(f"{reminder_width}x{reminder_height}+{int(screen_width * 0.5 - reminder_width * 0.5)}+{int(screen_height * 0.45)}")
+        reminder_popup.geometry(f"{reminder_width}x{reminder_height}+{int(screen_width * 0.5 - reminder_width * 0.5)}+{int(screen_height * 0.25)}")
 
         tk.Label(reminder_popup, text="You haven’t set a timer yet...", font=('Helvetica', 11)).pack(pady=10)
         tk.Button(reminder_popup, text="OK", command=reminder_popup.destroy).pack()
@@ -373,8 +401,9 @@ def show_subject_selection():
     input_win.title("Choose Subject")
     input_win.attributes("-topmost", True)
     input_width = int(screen_width * 0.25)
-    input_height = int(screen_height * 0.46)
-    input_win.geometry(f"{input_width}x{input_height}+{int(screen_width * 0.375 - input_width * 0.5)}+{int(screen_height * 0.375)}")
+
+    input_height = int(screen_height * (0.0353846 *sub_cnt))
+    input_win.geometry(f"{input_width}x{input_height}+{int((screen_width - input_width)/2 )}+{int(screen_height * 0.375)}")
     input_win.resizable(True, True)
 
     tk.Label(input_win, text="What subject are you studying?", font=('Helvetica', 12)).pack(pady=10)
