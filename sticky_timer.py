@@ -3,6 +3,7 @@
 import tkinter as tk
 from tkinter import simpledialog
 from tkinter import font
+from tkinter import messagebox # Added for restriction warnings
 
 import os
 import json
@@ -27,17 +28,20 @@ SUBJECTS = ["CS50",
             "Break",
             "Meditation"]
 
-#to substract when summing the total times
+# to substract when summing the total times
 NON_STUDY_SUBS = ["Class",
                   "Entertainment",
                   "Break", 
                   "Meditation"]
 
+# Subjects that cannot be repeated consecutively or within 5 minutes
+RESTRICTED_SUBJECTS = ["Break", "Entertainment"]
+
 LOG_FILE = "logs.json"
 
-sub_cnt=0
+sub_cnt = 0
 for subject in SUBJECTS:
-    sub_cnt+=1
+    sub_cnt += 1
 
 daily_log = {subject: 0 for subject in SUBJECTS}
 study_log = {subject: 0 for subject in SUBJECTS}
@@ -47,6 +51,10 @@ last_monthly_reset = datetime.now().strftime('%Y-%m')
 monthly_popup_shown = False
 concentration_mode_active = False
 last_logged_session = None
+
+# New Globals for Restrictions
+last_session_subject = None
+last_break_end_time = None
 
 # Initial global state
 goal = ""
@@ -114,16 +122,12 @@ def daily_goal():
     """Opens a window to set the daily goal."""
     global goal, goal_not_set
     
-    # Check if a goal popup already exists to prevent duplicates
-    # (Though logic below handles this, it's good practice)
-    
     goal_popup = tk.Toplevel()
     goal_popup.title("Set Goal")
     goal_popup_width = int(screen_width * 0.3)
     goal_popup_height = int(screen_height * 0.13)
     goal_popup.geometry(f"{goal_popup_width}x{goal_popup_height}+{int((screen_width  - goal_popup_width)/2 )}+{int(0)}")
     goal_popup.resizable(False, False)
-    # Make it stay on top so you don't miss it
     goal_popup.attributes("-topmost", True) 
 
     tk.Label(goal_popup, text="What is the goal for today?", font=('Helvetica', 12)).pack(pady=10)
@@ -137,9 +141,8 @@ def daily_goal():
         if val:
             goal = val
             goal_not_set = False
-            save_logs() # Save immediately so we don't lose it
+            save_logs() 
             goal_popup.destroy()
-            # Tricky part: We need to restart the reminder cycle now that goal is set
             reminder() 
         else:
             goal_not_set = True
@@ -152,7 +155,7 @@ def load_logs():
     try:
         with open(LOG_FILE, 'r') as f:
             data = json.load(f)
-            print(f"Loaded data: {data}")
+            # print(f"Loaded data: {data}")
     except (FileNotFoundError, json.JSONDecodeError):
         data = {}
 
@@ -161,17 +164,14 @@ def load_logs():
 
     last_date_str = data.get('last_date', '')
     
-    # --- LOGIC FIX FOR GOAL ---
     if last_date_str:
         try:
             last_date = datetime.strptime(last_date_str, '%Y-%m-%d').date()
             if last_date == today:
-                # Same day: Load the goal
                 daily_log.update(data.get('daily', {}))
                 goal = data.get('daily_goal_text', "")
                 goal_not_set = (goal == "")
             else:
-                # New day: Reset goal
                 daily_log = {subject: 0 for subject in SUBJECTS}
                 goal = ""
                 goal_not_set = True
@@ -183,7 +183,6 @@ def load_logs():
         daily_log = {subject: 0 for subject in SUBJECTS}
         goal = ""
         goal_not_set = True
-    # --------------------------
 
     last_friday = get_last_friday(today)
     last_weekly_reset_str = data.get('last_weekly_reset', '')
@@ -217,7 +216,7 @@ def save_logs():
             'daily': daily_log,
             'weekly': study_log,
             'monthly': monthly_log,
-            'daily_goal_text': goal, # Saving the goal here
+            'daily_goal_text': goal, 
             'last_date': today.strftime('%Y-%m-%d'),
             'last_weekly_reset': last_weekly_reset.strftime('%Y-%m-%d'),
             'last_monthly_reset': last_monthly_reset
@@ -308,7 +307,7 @@ def update_logs_periodically():
 
 def countdown(duration):
     def update(count):
-        global reminder_after_id, start_time, timer_started
+        global reminder_after_id, start_time, timer_started, last_session_subject, last_break_end_time
         timer_started = True
         if reminder_after_id is not None:
             root.after_cancel(reminder_after_id)
@@ -328,13 +327,20 @@ def countdown(duration):
         else:
             label.config(text="Time’s up")
             timer_started = False
+            
+            # --- RESTRICTION UPDATE LOGIC ---
+            last_session_subject = current_subject
+            if current_subject in RESTRICTED_SUBJECTS:
+                last_break_end_time = datetime.now()
+            # -------------------------------
+
             load_logs()
 
             sound_path = os.path.join(os.path.dirname(__file__), "assets/timer_done.wav")
             if not os.path.exists(sound_path):
                 print(f"Sound file not found: {sound_path}")
             else:
-                result = os.system(f"paplay {sound_path}")
+                os.system(f"paplay {sound_path}")
 
             end_time = datetime.now()
             if current_subject and start_time:
@@ -389,9 +395,16 @@ def stopwatch():
     log_update_after_id = root.after(60000, update_logs_periodically)
 
 def stop_stopwatch():
-    global timer_started, stopwatch_running, current_subject, start_time, reminder_after_id, stopwatch_stop_button, log_update_after_id, concentration_mode_active
+    global timer_started, stopwatch_running, current_subject, start_time, reminder_after_id, stopwatch_stop_button, log_update_after_id, concentration_mode_active, last_session_subject, last_break_end_time
     if stopwatch_running:
         stopwatch_running = False
+        
+        # --- RESTRICTION UPDATE LOGIC ---
+        last_session_subject = current_subject
+        if current_subject in RESTRICTED_SUBJECTS:
+            last_break_end_time = datetime.now()
+        # -------------------------------
+
         load_logs()
         concentration_mode_active = False
         end_time = datetime.now()
@@ -423,15 +436,11 @@ def play_sound_if_popup_exists(popup):
 def reminder():
     global goal, goal_not_set, reminder_after_id, reminder_popup, timer_started, concentration_mode_active
     
-    # Don't show reminder if a timer/stopwatch is currently running
     if not timer_started and not concentration_mode_active:
-        
-        # KEY CHANGE: logic flow
         if goal_not_set:
-            daily_goal() # Open the input window
-            return       # STOP here. Do not show reminder popup yet.
+            daily_goal()
+            return
         
-        # If we are here, the goal IS set
         if reminder_popup and reminder_popup.winfo_exists():
             reminder_popup.destroy()
         
@@ -439,12 +448,10 @@ def reminder():
         reminder_popup.title("Friendly Reminder \U0001F640")
         reminder_popup.attributes("-topmost", True)
 
-
         my_font = tk.font.Font(family="Helvetica", size=11, weight="normal")
         width_in_pixels = my_font.measure(goal)
         multiplier = min(max(width_in_pixels / screen_width + 0.1, 0.2), 0.8)
 
-        # print(width_in_pixels)
         reminder_width = int(screen_width * multiplier)
         reminder_height = int(screen_height * 0.07)
 
@@ -456,6 +463,33 @@ def reminder():
         root.after(10000, play_sound_if_popup_exists, reminder_popup)
         reminder_after_id = root.after(10000, reminder)
         show_subject_selection()
+
+def validate_subject_selection(subject):
+    """
+    Checks if a subject is restricted (Break/Entertainment).
+    If so, enforces:
+      1. No consecutive use (must have done a different subject last).
+      2. 5-minute cooldown since the last restricted session ended.
+    """
+    global last_session_subject, last_break_end_time
+
+    if subject in RESTRICTED_SUBJECTS:
+        # 1. Check for Consecutive Usage
+        if last_session_subject in RESTRICTED_SUBJECTS:
+            messagebox.showwarning("Hold on!", "You cannot take two breaks in a row.\nGo study something first!")
+            return
+
+        # 2. Check for 5 Minute Cooldown
+        if last_break_end_time:
+            time_since_break = datetime.now() - last_break_end_time
+            if time_since_break < timedelta(minutes=5):
+                remaining_seconds = 300 - int(time_since_break.total_seconds())
+                mins, secs = divmod(remaining_seconds, 60)
+                messagebox.showwarning("Cooldown Active", f"You must wait {mins}m {secs}s before taking another break.")
+                return
+
+    # If checks pass (or subject is not restricted), proceed
+    ask_duration(subject)
 
 def show_subject_selection():
     global input_win
@@ -472,7 +506,9 @@ def show_subject_selection():
 
     tk.Label(input_win, text="What subject are you studying?", font=('Helvetica', 12)).pack(pady=10)
     for subject in SUBJECTS:
-        tk.Button(input_win, text=subject, width=20, font=('Helvetica', 14), command=lambda s=subject: ask_duration(s)).pack(pady=2)
+        # Calls the validation function instead of directly asking for duration
+        tk.Button(input_win, text=subject, width=20, font=('Helvetica', 14), 
+                  command=lambda s=subject: validate_subject_selection(s)).pack(pady=2)
 
 def ask_duration(subject):
     global current_subject, input_win, start_time

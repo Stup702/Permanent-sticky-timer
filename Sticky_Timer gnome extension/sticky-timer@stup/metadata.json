@@ -1,0 +1,7 @@
+{
+    "name": "Sticky Timer",
+    "description": "Displays a study timer in the GNOME top bar",
+    "uuid": "sticky-timer@stup",
+    "shell-version": ["42", "43", "44", "45", "46", "47", "48"],
+    "version": 1
+}
