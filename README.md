@@ -90,7 +90,52 @@ Then paste this inside
 And voila! double click and that timer will haunt your workspace like a ghost.
 
 
-Also, If you want dont want timer window to be a pain in the a$$, you can configure it to have a gnome extension which will create a timer in the top bar. Like this,
+### A watchdog that restarts the app every 30 mins if its off ( If you want)
+
+If you are a master procrastinator like me and turn off your timer sometimes and then forget to turn it back up, it's not going to do that much judging anyway, right?
+Well, have no fear, every 30 minutes, the systemd service will check your timer state, if off, it's gonna come back to life.
+
+TO enable this feature, simply go to the systemd setup file and run the setup_systemd.sh file
+
+make is executable,
+    
+    chmod +x setup_systemd.sh
+
+then run,
+
+    ./setup_systemd.sh
+
+And done. 
+
+To exorcise this recurring ghost, 
+run the remove_systemd.sh file
+
+Go to the systemd removal folder and then run the remove_systemd.sh file
+
+make is executable,
+    
+    chmod +x remove_systemd.sh
+
+then run,
+
+    ./remove_systemd.sh
+
+
+## A safety word to kill the app for some time,
+
+    systemctl --user stop watchdog.service
+
+## Another bigger safety word for closure till restart,
+
+    systemctl --user stop watchdog.service
+    systemctl --user start watchdog_timer.service
+This will paralyze the system until restart
+
+    
+
+
+### Also a GNOME EXTENSION
+If you want dont want timer window to be a pain in the a$$, you can configure it to have a gnome extension which will create a timer in the top bar. Like this,
 
 <img width="371" height="94" alt="image" src="https://github.com/user-attachments/assets/78f7fe14-e0a0-46a4-8f58-00fe4dd67ebb" />
 
@@ -106,5 +151,6 @@ and then
 This will install the GNOME EXTENSION for this app.
 
 ##MUST BE A GNOME DESKTOP
-    
+
+
 
