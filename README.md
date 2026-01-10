@@ -88,3 +88,23 @@ Then paste this inside
 
 
 And voila! double click and that timer will haunt your workspace like a ghost.
+
+
+Also, If you want dont want timer window to be a pain in the a$$, you can configure it to have a gnome extension which will create a timer in the top bar. Like this,
+
+<img width="371" height="94" alt="image" src="https://github.com/user-attachments/assets/78f7fe14-e0a0-46a4-8f58-00fe4dd67ebb" />
+
+
+Then use the install_extension.sh file
+
+    chmod +x install_extension.sh
+
+and then 
+    
+    ./install_extension.sh
+
+This will install the GNOME EXTENSION for this app.
+
+##MUST BE A GNOME DESKTOP
+    
+
