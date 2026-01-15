@@ -5,6 +5,8 @@ from tkinter import simpledialog
 from tkinter import font
 from tkinter import messagebox # Added for restriction warnings
 
+import random
+
 import os
 import json
 import subprocess
@@ -336,7 +338,7 @@ def countdown(duration):
 
             load_logs()
 
-            sound_path = os.path.join(os.path.dirname(__file__), "assets/timer_done.wav")
+            sound_path = os.path.join(os.path.dirname(__file__), "assets/yen_timer_done.wav")
             if not os.path.exists(sound_path):
                 print(f"Sound file not found: {sound_path}")
             else:
@@ -411,6 +413,12 @@ def stop_stopwatch():
         if current_subject and start_time:
             duration_minutes = (end_time - start_time).total_seconds() / 60
             minutes = round(duration_minutes)
+            if(minutes >=25):
+                sound_path = os.path.join(os.path.dirname(__file__), "assets/yen_timer_done.wav")
+                if not os.path.exists(sound_path):
+                    print(f"Sound file not found: {sound_path}")
+                else:
+                    os.system(f"paplay {sound_path}")
             add_session_minutes(current_subject, start_time, minutes)
 
         label.config(text="Stopped")
@@ -430,7 +438,12 @@ def stop_stopwatch():
 
 def play_sound_if_popup_exists(popup):
     if popup and popup.winfo_exists():
-        sound_path = os.path.join(os.path.dirname(__file__), "assets/timer_set.wav")
+
+        audio_file_id = random.randint(1,3)
+
+        audio_file_name = "assets/yen_timer_set_"+str(audio_file_id)+".wav"
+
+        sound_path = os.path.join(os.path.dirname(__file__), audio_file_name)
         os.system(f"paplay {sound_path}")
 
 def reminder():
@@ -449,15 +462,28 @@ def reminder():
         reminder_popup.attributes("-topmost", True)
 
         my_font = tk.font.Font(family="Helvetica", size=11, weight="normal")
-        width_in_pixels = my_font.measure(goal)
+
+
+        warning = "Is what you are doing right now, more important?"
+
+        comparison_str=""
+        if(len(warning)>len(goal)):
+            comparison_str = warning
+        else:
+            comparison_str = goal
+        width_in_pixels = my_font.measure(comparison_str)
+
+
         multiplier = min(max(width_in_pixels / screen_width + 0.1, 0.2), 0.8)
 
         reminder_width = int(screen_width * multiplier)
-        reminder_height = int(screen_height * 0.07)
+        reminder_height = int(screen_height * 0.12)
 
         reminder_popup.geometry(f"{reminder_width}x{reminder_height}+{int(screen_width * 0.5 - reminder_width * 0.5)}+{int(screen_height * 0.25)}")
         
         tk.Label(reminder_popup, text=f"Today's Goal: {goal}", font=('Helvetica', 11)).pack(pady=10)
+
+        tk.Label(reminder_popup, text=f"Is what you are doing right now, more important?", font=('Helvetica', 11)).pack(pady=10)
         tk.Button(reminder_popup, text="OK", command=reminder_popup.destroy).pack()
         
         root.after(10000, play_sound_if_popup_exists, reminder_popup)
