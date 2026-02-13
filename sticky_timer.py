@@ -36,21 +36,21 @@ SUBJECTS = ["CS50",
             "Personal Coding",
             "CP",
             "COA",
-            "DSA",
-            "OOP",
             "Matrix and Lin. Alg.",
-            "Economics","Accounting",
+            "Accounting",
             "Class",
+            "Procrastination",
             "Entertainment",
             "Break",
             "Meditation"]
 
 NON_STUDY_SUBS = ["Class",
+                  "Procrastination",
                   "Entertainment",
                   "Break", 
                   "Meditation"]
 
-BREAK_SUBS = ["Break", "Entertainment"]
+BREAK_SUBS = ["Procrastination","Break", "Entertainment"]
 
 # Subjects restricted from consecutive repetition
 RESTRICTED_SUBJECTS = ["Break", "Entertainment"]
@@ -122,8 +122,11 @@ canvas.get_tk_widget().configure(bg=THEME["bg"])
 
 timer_started = False
 reminder_after_id = None
+scold_after_id = None
 input_win = None
 reminder_popup = None
+goal_popup = None
+goal_after_id = None
 current_subject = None
 start_time = None
 stopwatch_running = False
@@ -208,14 +211,28 @@ def get_last_friday(date):
     return last_friday
 
 def daily_goal():
-    global goal, goal_not_set
+    global goal, goal_popup, goal_not_set, goal_after_id
+
+    # 1. Stop any pending recursive calls (Fixes the "Double Popup" / "Zombie Timer")
+    if goal_after_id:
+        root.after_cancel(goal_after_id)
+        goal_after_id = None
+
+    if goal_popup and goal_popup.winfo_exists():
+        goal_popup.destroy()
+    
+    # Safety check: If goal is already set, don't open this
+    if not goal_not_set:
+        reminder()
+        return
+
     goal_popup = tk.Toplevel()
     goal_popup.title("Set Goal")
     goal_popup.configure(bg=THEME["bg"]) 
     
     goal_popup_width = int(screen_width * 0.3)
     goal_popup_height = int(screen_height * 0.13)
-    goal_popup.geometry(f"{goal_popup_width}x{goal_popup_height}+{int((screen_width  - goal_popup_width)/2 )}+{int(screen_height * 0.2)}")
+    goal_popup.geometry(f"{goal_popup_width}x{goal_popup_height}+{int((screen_width  - goal_popup_width)/2 )}+{int(screen_height * 0.21)}")
     goal_popup.resizable(False, False)
     goal_popup.attributes("-topmost", True) 
 
@@ -228,7 +245,13 @@ def daily_goal():
     entry.focus()
     
     def submit():
-        global goal, goal_not_set
+        global goal, goal_not_set, goal_after_id
+        
+        # Cancel the loop so it doesn't reopen after we destroy it
+        if goal_after_id:
+            root.after_cancel(goal_after_id)
+            goal_after_id = None
+
         val = entry.get().strip()
         if val:
             goal = val
@@ -241,7 +264,14 @@ def daily_goal():
             
     tk.Button(goal_popup, text="Set Goal", command=submit,
               bg=THEME["button_bg"], fg=THEME["button_fg"], activebackground=THEME["accent"]).pack(pady=10)
-    goal_popup.bind('<Return>', lambda event: submit())
+    
+    # 2. Fix Enter Key: Bind to the ENTRY widget, not just the popup
+    entry.bind('<Return>', lambda event: submit())
+
+    # Recursive loop to nag if window is ignored
+    if goal_not_set:
+        root.after(15000, play_sound_if_popup_exists, goal_popup)
+        goal_after_id = root.after(15000, daily_goal)
 
 def load_logs():
     global goal, goal_not_set, daily_log, study_log, monthly_log, last_weekly_reset, last_monthly_reset
@@ -504,17 +534,92 @@ def stopwatch():
         log_update_after_id = None
     log_update_after_id = root.after(60000, update_logs_periodically)
 
+def show_custom_message(title, message, msg_type="info"):
+    """
+    Custom replacement for messagebox to match the Yennefer theme.
+    msg_type options: "info", "error", "warning", "yesno"
+    Returns: True if Yes/OK is clicked, False if No is clicked.
+    """
+    # Create the top-level window
+    msg_box = tk.Toplevel(root)
+    msg_box.title(title)
+    msg_box.configure(bg=THEME["bg"])
+    msg_box.attributes("-topmost", True)
+    
+    # Calculate size and position (centered)
+    box_width = int(screen_width * 0.25)
+    box_height = int(screen_height * 0.15)
+    x_pos = int((screen_width - box_width) / 2)
+    y_pos = int((screen_height - box_height) / 2)
+    msg_box.geometry(f"{box_width}x{box_height}+{x_pos}+{y_pos}")
+    msg_box.resizable(False, False)
+
+    # Message Label
+    lbl = tk.Label(msg_box, text=message, font=('Helvetica', 12),
+                   bg=THEME["bg"], fg=THEME["fg"], wraplength=box_width-20)
+    lbl.pack(pady=20, padx=20, expand=True)
+
+    # Container for return value
+    result = {"value": False}
+
+    # Button Frame
+    btn_frame = tk.Frame(msg_box, bg=THEME["bg"])
+    btn_frame.pack(pady=10)
+
+    # Button Commands
+    def on_yes_ok():
+        result["value"] = True
+        msg_box.destroy()
+
+    def on_no():
+        result["value"] = False
+        msg_box.destroy()
+
+    # Logic to display buttons based on type
+    if msg_type == "yesno":
+        btn_yes = tk.Button(btn_frame, text="Yes", command=on_yes_ok, width=10,
+                            bg=THEME["button_bg"], fg=THEME["button_fg"], 
+                            activebackground=THEME["accent"])
+        btn_yes.pack(side=tk.LEFT, padx=10)
+        
+        btn_no = tk.Button(btn_frame, text="No", command=on_no, width=10,
+                           bg=THEME["button_bg"], fg=THEME["button_fg"], 
+                           activebackground=THEME["accent"])
+        btn_no.pack(side=tk.LEFT, padx=10)
+        
+        # Bind keys for better UX
+        msg_box.bind('<Return>', lambda e: on_yes_ok())
+        msg_box.bind('<Escape>', lambda e: on_no())
+
+    else: # info, error, warning
+        btn_ok = tk.Button(btn_frame, text="OK", command=on_yes_ok, width=10,
+                           bg=THEME["button_bg"], fg=THEME["button_fg"], 
+                           activebackground=THEME["accent"])
+        btn_ok.pack()
+        msg_box.bind('<Return>', lambda e: on_yes_ok())
+        msg_box.bind('<Escape>', lambda e: on_yes_ok())
+
+    # Make the window modal (disable interaction with main window until closed)
+    msg_box.transient(root)
+    msg_box.grab_set()
+    root.wait_window(msg_box) # This pauses execution of the main script
+
+    return result["value"]
 
 def start_stopwatch(subject):
     global current_subject, input_win, timer_started, reminder_after_id, reminder_popup
     
     # --- RESTRICTION CHECK ---
     if subject in NO_CONCENTRATION_SUBS:
-        messagebox.showerror("Not Allowed", "Concentration Mode is for study subjects only.\nUse a standard timer for breaks.")
+        # messagebox.showerror("Not Allowed", "Concentration Mode is for study subjects only.\nUse a standard timer for breaks.")
+        show_custom_message("Not Allowed", "Concentration Mode is for study subjects only.\nUse a standard timer for breaks.", "error")
+        return
         return
     
-    # --- CONFIRMATION ---
-    if not messagebox.askyesno("Confirm", "It's better to study on slotted time. Are you sure ?"):
+    # # --- CONFIRMATION ---
+    # if not messagebox.askyesno("Confirm", "It's better to study on slotted time. Are you sure ?"):
+    #     return
+    if not show_custom_message("Confirm", "It's better to study on slotted time. Are you sure ?", "yesno"):
         return
 
     current_subject = subject
@@ -553,8 +658,10 @@ def stop_stopwatch():
             log_update_after_id = None
         
         # --- NEW LOGIC FOR > 30 MINS ---
+        
         if minutes > 30:
             show_allocation_window(minutes, current_subject, start_time)
+
         else:
             # Standard logic for <= 30 mins
             if minutes >= 25:
@@ -563,7 +670,7 @@ def stop_stopwatch():
                     os.system(f"paplay {sound_path}")
             
             add_session_minutes(current_subject, start_time, minutes)
-            reminder_after_id = root.after(5000, reminder)
+            reminder_after_id = root.after(500, reminder)
 
         try:
             with open('/tmp/sticky_timer.txt', 'w') as f:
@@ -583,7 +690,7 @@ def show_allocation_window(total_minutes, subject, s_time):
     # Window geometry
     alloc_width = int(screen_width * 0.3)
     alloc_height = int(screen_height * 0.3)
-    alloc_win.geometry(f"{alloc_width}x{alloc_height}+{int(screen_width/2 - alloc_width/2)}+{int(screen_height/2 - alloc_height/2)}")
+    alloc_win.geometry(f"{alloc_width}x{alloc_height}+{int((screen_width-alloc_width)/2)}+{int((screen_height - alloc_height)/2)}")
 
     tk.Label(alloc_win, text=f"Total Time: {total_minutes} min", font=('Helvetica', 14, 'bold'),
              bg=THEME["bg"], fg=THEME["fg"]).pack(pady=10)
@@ -598,7 +705,15 @@ def show_allocation_window(total_minutes, subject, s_time):
     tk.Label(alloc_win, text="Deposit the rest into:", font=('Helvetica', 12),
              bg=THEME["bg"], fg=THEME["fg"]).pack(pady=5)
     
-    deposit_options = SUBJECTS - "MEDITATION"
+    deposit_options = list(SUBJECTS) 
+    
+    # FIX 3: Safe removal check
+    if "Meditation" in deposit_options:
+        deposit_options.remove("Meditation")
+    
+    # Added "Discard" option in case I don't want to log the extra time at all
+    if "Discard" not in deposit_options:
+        deposit_options.append("Discard")
     selected_deposit = tk.StringVar(alloc_win)
     selected_deposit.set("Break")
     
@@ -631,6 +746,14 @@ def show_allocation_window(total_minutes, subject, s_time):
 
         except ValueError:
             pass
+    def on_window_close():
+        # If closed without allocating, log everything to the main subject so data isn't lost
+        add_session_minutes(subject, s_time, total_minutes)
+        alloc_win.destroy()
+        global reminder_after_id
+        reminder_after_id = root.after(5000, reminder)
+        
+    alloc_win.protocol("WM_DELETE_WINDOW", on_window_close)
 
     tk.Button(alloc_win, text="Confirm", command=confirm_allocation,
               bg=THEME["button_bg"], fg=THEME["button_fg"], activebackground=THEME["accent"]).pack(pady=15)
@@ -641,60 +764,96 @@ def play_sound_if_popup_exists(popup):
         audio_file_name = "assets/yen_timer_set_"+str(audio_file_id)+".wav"
         sound_path = os.path.join(os.path.dirname(__file__), audio_file_name)
         os.system(f"paplay {sound_path}")
-
-def reminder():
-    global goal, goal_not_set, reminder_after_id, reminder_popup, timer_started, concentration_mode_active
+def scold_user():
+    global scold_after_id, reminder_popup, goal, input_win
     
-    if not timer_started and not concentration_mode_active:
-        if goal_not_set:
-            daily_goal()
-            return
-        
-        if reminder_popup and reminder_popup.winfo_exists():
-            reminder_popup.destroy()
-        
-        reminder_popup = tk.Toplevel(root)
-        reminder_popup.title("Friendly Reminder \U0001F640")
-        reminder_popup.attributes("-topmost", True)
-        reminder_popup.configure(bg=THEME["bg"]) 
+    # 1. Prevent timer stacking (Cancel any previous pending scold)
+    if scold_after_id:
+        root.after_cancel(scold_after_id)
+        scold_after_id = None
+    
+    # Safety: Don't scold if a timer is actually running
+    if timer_started or concentration_mode_active:
+        return
 
-        my_font = tk.font.Font(family="Helvetica", size=11, weight="normal")
-
-        warning = "Is what you are doing right now, more important?"
-
-        comparison_str=""
-        if(len(warning)>len(goal)):
-            comparison_str = warning
-        else:
-            comparison_str = goal
-        width_in_pixels = my_font.measure(comparison_str)
-
-        multiplier = min(max(width_in_pixels / screen_width + 0.1, 0.2), 0.8)
-
-        reminder_width = int(screen_width * multiplier)
-        reminder_height = int(screen_height * 0.12)
-
-        reminder_popup.geometry(f"{reminder_width}x{reminder_height}+{int(screen_width * 0.5 - reminder_width * 0.5)}+{int(screen_height * 0.25)}")
-        
-        tk.Label(reminder_popup, text=f"Today's Goal: {goal}", font=('Helvetica', 11),
-                 bg=THEME["bg"], fg=THEME["fg"]).pack(pady=10)
-
-        tk.Label(reminder_popup, text=f"Is what you are doing right now, more important?", font=('Helvetica', 11),
-                 bg=THEME["bg"], fg=THEME["fg"]).pack(pady=10)
-        tk.Button(reminder_popup, text="OK", command=reminder_popup.destroy,
-                  bg=THEME["button_bg"], fg=THEME["button_fg"], activebackground=THEME["accent"]).pack()
-        
-        root.after(15000, play_sound_if_popup_exists, reminder_popup)
-        reminder_after_id = root.after(15000, reminder)
-        
+    # 2. THE FIX: If the subject window is closed/missing, bring it back!
+    if input_win is None or not input_win.winfo_exists():
         show_subject_selection()
 
+    # 3. Show the Scolding Popup
+    if reminder_popup and reminder_popup.winfo_exists():
+        reminder_popup.destroy()
+    
+    reminder_popup = tk.Toplevel(root)
+    reminder_popup.title("Friendly Reminder \U0001F640")
+    reminder_popup.attributes("-topmost", True)
+    reminder_popup.configure(bg=THEME["bg"]) 
+
+    my_font = font.Font(family="Helvetica", size=11, weight="normal")
+    warning = "Is what you are doing right now, more important?"
+    comparison_str = warning if len(warning) > len(goal) else goal
+    
+    width_in_pixels = my_font.measure(comparison_str)
+    multiplier = min(max(width_in_pixels / screen_width + 0.1, 0.2), 0.8)
+
+    reminder_width = int(screen_width * multiplier)
+    reminder_height = int(screen_height * 0.12)
+
+    reminder_popup.geometry(f"{reminder_width}x{reminder_height}+{int(screen_width * 0.5 - reminder_width * 0.5)}+{int(screen_height * 0.215)}")
+    
+    tk.Label(reminder_popup, text=f"Today's Goal: {goal}", font=('Helvetica', 11),
+             bg=THEME["bg"], fg=THEME["fg"]).pack(pady=10)
+
+    tk.Label(reminder_popup, text=warning, font=('Helvetica', 11),
+             bg=THEME["bg"], fg=THEME["fg"]).pack(pady=10)
+    
+    tk.Button(reminder_popup, text="OK", command=reminder_popup.destroy,
+              bg=THEME["button_bg"], fg=THEME["button_fg"], activebackground=THEME["accent"]).pack()
+    
+    # 4. Play Sound
+    root.after(500, play_sound_if_popup_exists, reminder_popup)
+
+    # 5. Repeat Scolding every 15 seconds if ignored
+    scold_after_id = root.after(15000, scold_user)
+     
+def reminder():
+    global goal, goal_not_set, reminder_after_id, timer_started, concentration_mode_active, input_win, scold_after_id
+    
+    # 1. Check if already selecting (busy)
+    if input_win and input_win.winfo_exists():
+        # Check back in 5 seconds, but don't force anything
+        reminder_after_id = root.after(5000, reminder)
+        return
+    
+    # 2. Check if timer running (busy)
+    if timer_started or concentration_mode_active:
+        reminder_after_id = root.after(15000, reminder)
+        return
+
+    # 3. Check Goal
+    if goal_not_set:
+        daily_goal()
+        return
+    
+    # 4. Open Selection Window IMMEDIATELY
+    show_subject_selection()
+    
+    # 5. Schedule the Scolding (Nag) for 15 seconds later
+    if scold_after_id:
+        root.after_cancel(scold_after_id)
+    scold_after_id = root.after(15000, scold_user)
+    
+    # Note: We do NOT schedule 'reminder' loop here. 
+    # The 'scold_user' loop takes over until a session is started.
+
+    
 def validate_subject_selection(subject):
     global last_session_subject, last_break_end_time
 
     if subject in RESTRICTED_SUBJECTS:
         if last_session_subject in RESTRICTED_SUBJECTS:
-            messagebox.showwarning("Hold on!", "You cannot take two breaks in a row.\nGo study something first!")
+            # messagebox.showwarning("Hold on!", "I cannot take two breaks in a row.\nGo study something first!")
+            show_custom_message("Hold on!", "You cannot take two breaks in a row.\nGo study something first!", "warning")
             return
 
         if last_break_end_time:
@@ -702,7 +861,8 @@ def validate_subject_selection(subject):
             if time_since_break < timedelta(minutes=5):
                 remaining_seconds = 300 - int(time_since_break.total_seconds())
                 mins, secs = divmod(remaining_seconds, 60)
-                messagebox.showwarning("Cooldown Active", f"You must wait {mins}m {secs}s before taking another break.")
+                # messagebox.showwarning("Cooldown Active", f"I must wait {mins}m {secs}s before taking another break.")
+                show_custom_message("Cooldown Active", f"You must wait {mins}m {secs}s before taking another break.", "warning")
                 return
 
     ask_duration(subject)
@@ -749,7 +909,7 @@ def ask_duration(subject):
     
     setup_width = int(screen_width * 0.25)
     setup_height = int(screen_height * 0.23)
-    input_win.geometry(f"{setup_width}x{setup_height}+{int(screen_width * 0.375 - setup_width * 0.5)}+{int(screen_height * 0.45)}")
+    input_win.geometry(f"{setup_width}x{setup_height}+{int((screen_width - setup_width) * 0.5)}+{int(screen_height * 0.45)}")
     input_win.resizable(True, True)
 
     tk.Label(input_win, text=f"How many minutes for {subject}?", font=('Helvetica', 12),
@@ -837,11 +997,11 @@ def confirm_quit():
 root.protocol("WM_DELETE_WINDOW", confirm_quit)
 graph_root.protocol("WM_DELETE_WINDOW", confirm_quit)
 
-show_subject_selection()
+# show_subject_selection()
 show_monthly_popup()
 update_graph()
 
-root.after(5000, play_sound_if_popup_exists, reminder_popup)
-reminder_after_id = root.after(5000, reminder)
+# root.after(500, play_sound_if_popup_exists, reminder_popup)
+reminder_after_id = root.after(500, reminder)
 
 root.mainloop()
